@@ -20,6 +20,12 @@ type Product struct {
 	Price       float64 `json:"price"`
 }
 
+type Purchase struct {
+	ProductName string  `json:"product_name"`
+	Quantity    int     `json:"quantity"`
+	TotalPrice  float64 `json:"total_price"`
+}
+
 var products []Product
 
 func main() {
@@ -28,9 +34,11 @@ func main() {
 	router.GET("/ping", func(c *gin.Context) { c.String(http.StatusOK, "pong") })
 
 	productsGroup := router.Group("/products")
-	productsGroup.GET("/search", Search)
-	productsGroup.GET("/productparams", NewProduct)
-	productsGroup.GET("/:id", SearchProduct)
+	productsGroup.GET("/search", PriceGtThan)
+	productsGroup.GET("/productparams", createProduct)
+	productsGroup.GET("/:id", FindById)
+	productsGroup.GET("/searchbyquantity", SearchByQuantityRange)
+	productsGroup.GET("/buy", PurchaseDetail)
 
 	router.Run()
 }
@@ -46,7 +54,7 @@ func loadProducts(path string) {
 	}
 }
 
-func SearchProduct(c *gin.Context) {
+func FindById(c *gin.Context) {
 	paramId := c.Param("id")
 	id, err := strconv.Atoi(paramId)
 	if err != nil {
@@ -61,7 +69,7 @@ func SearchProduct(c *gin.Context) {
 
 }
 
-func Search(c *gin.Context) {
+func PriceGtThan(c *gin.Context) {
 
 	query := c.Query("priceGt")
 	priceGt, err := strconv.ParseFloat(query, 64)
@@ -82,7 +90,7 @@ func Search(c *gin.Context) {
 	c.JSON(http.StatusOK, list)
 }
 
-func NewProduct(c *gin.Context) {
+func createProduct(c *gin.Context) {
 	qId := c.Query("id")
 	id, err := strconv.Atoi(qId)
 	if err != nil {
@@ -140,4 +148,59 @@ func NewProduct(c *gin.Context) {
 
 	f.Write(jsonList)
 	c.JSON(http.StatusOK, product)
+}
+
+func SearchByQuantityRange(c *gin.Context) {
+	qFrom := c.Query("from")
+	from, err := strconv.Atoi(qFrom)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid 'from' Quantity",
+		})
+		return
+	}
+
+	qTo := c.Query("to")
+	to, err := strconv.Atoi(qTo)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid 'to' Quantity",
+		})
+		return
+	}
+
+	list := []Product{}
+	for _, p := range products {
+		if p.Quantity >= from && p.Quantity <= to {
+			list = append(list, p)
+		}
+	}
+
+	c.JSON(http.StatusOK, list)
+}
+
+func PurchaseDetail(c *gin.Context) {
+	qCodeValue := c.Query("code_value")
+
+	qQuantity := c.Query("quantity")
+	quantity, err := strconv.Atoi(qQuantity)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid quantity",
+		})
+		return
+	}
+
+	for _, p := range products {
+		if p.CodeValue == qCodeValue {
+			totalPrice := p.Price * float64(quantity)
+			purchase := Purchase{
+				ProductName: p.Name,
+				Quantity:    quantity,
+				TotalPrice:  totalPrice,
+			}
+			c.JSON(http.StatusOK, purchase)
+			return
+		}
+	}
 }
