@@ -45,6 +45,7 @@ func loadProducts(path string) {
 		panic(err)
 	}
 }
+
 func SearchProduct(c *gin.Context) {
 	paramId := c.Param("id")
 	id, err := strconv.Atoi(paramId)
@@ -59,6 +60,7 @@ func SearchProduct(c *gin.Context) {
 	}
 
 }
+
 func Search(c *gin.Context) {
 
 	query := c.Query("priceGt")
@@ -126,12 +128,16 @@ func NewProduct(c *gin.Context) {
 		Expiration:  expiration,
 		Price:       price,
 	}
-
 	products := append(products, product)
 	jsonList, err := json.Marshal(products)
 	if err != nil {
 		log.Fatal(err)
 	}
-	os.WriteFile("/products.json", jsonList, 066)
+	f, err := os.Create("products.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	f.Write(jsonList)
 	c.JSON(http.StatusOK, product)
 }
